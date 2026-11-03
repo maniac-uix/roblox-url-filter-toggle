@@ -50,6 +50,16 @@ cas ci-dessous.
   puis réessayez. Ne modifiez jamais la liste des URL à la main
   pendant une bascule.
 
+## Valeur de paramètre invalide — `STATE_READ_FAILED` (code 6)
+
+- L'un des quatre paramètres lus (`UrlFilterEnable`, `UrlFilterTarget`,
+  `MacFilterEnable`, `MacFilterTarget`) est absent, vide ou ne vaut
+  pas `0` ou `1` (par exemple `MacFilterEnable=2`). Le script abandonne
+  **sans aucune écriture**, comme pour un paramètre absent.
+- Vérifiez dans l'interface du routeur (Critères de filtrage) que les
+  paramètres sont bien renseignés et cohérents, puis réessayez. Ne
+  forcez jamais une bascule tant que la lecture n'est pas propre.
+
 ## Exécution déjà en cours — `ALREADY_RUNNING` (code 7)
 
 - Un lancement précédent n'est pas encore terminé. Attendez

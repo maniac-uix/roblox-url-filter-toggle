@@ -27,6 +27,10 @@ Ce qu'il ne fait **jamais** :
 - il ne touche ni au filtre MAC, ni au mode (reste en `Liste noire`) —
   si le mode liste blanche est détecté au départ, il abandonne sans
   rien modifier,
+- il n'écrit rien si l'un des quatre paramètres lus
+  (`UrlFilterEnable`, `UrlFilterTarget`, `MacFilterEnable`,
+  `MacFilterTarget`) ne vaut pas strictement `0` ou `1` (valeur
+  absente, vide ou inattendue → abandon sans écriture),
 - il n'affiche jamais « succès » sans avoir vérifié le nouvel état,
 - il ne bascule jamais à l'aveugle (réponse perdue = échec déclaré).
 
@@ -169,7 +173,9 @@ Les tests (`tests/`, `unittest` + `unittest.mock`) simulent le routeur
 et ne nécessitent aucun routeur physique. Ils couvrent
 l'authentification, la lecture d'état, la bascule (no-op sans
 écriture, une seule écriture), les paramètres protégés et le contrat
-Tasker (formes JSON, codes de sortie).
+Tasker (formes JSON, codes de sortie), ainsi que la cryptographie
+(structure PKCS#1 v1.5, en-tête `Check`, longueurs de ciphertext) et
+la validation stricte des paramètres avant écriture.
 
 ```sh
 python3 -m unittest discover -s tests -v

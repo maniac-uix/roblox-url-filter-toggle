@@ -59,6 +59,20 @@ Par rapport à la première version publiée (script seul + README) :
 - `TROUBLESHOOTING.md`, guide Tasker (`tasker/README.md`) et README
   réécrit, avec note de migration v1 → v2.
 
+### Correctifs (3e audit, avant publication de la v1.0.0)
+
+- **Validation stricte des quatre paramètres avant toute écriture** :
+  `UrlFilterEnable`, `UrlFilterTarget`, `MacFilterEnable` et
+  `MacFilterTarget` doivent valoir strictement `0` ou `1`, sinon
+  abandon sans aucune écriture (code 6, `STATE_READ_FAILED`) — une
+  valeur vide ou inattendue (par exemple `MacFilterEnable=2`) ne peut
+  plus être reprise dans le POST.
+- **Tests cryptographiques** (`tests/test_crypto.py`) : structure du
+  bloc PKCS#1 v1.5 (`00 02 || PS || 00 || message`, PS non nul de
+  longueur exacte), en-tête `Check` (SHA-256 du body, RSA, Base64),
+  longueurs de ciphertext (512 octets clé routeur) et rejet des
+  messages trop longs.
+
 ### Protocole routeur : inchangé
 
 Le protocole validé avec le ZTE F6600P n'a pas changé : chiffrement

@@ -603,10 +603,11 @@ def execute(action):
                         raise StateReadError(
                             "paramètre %s absent de la réponse du routeur"
                             % key)
-                if etat["UrlFilterEnable"] not in ("0", "1"):
-                    raise StateReadError(
-                        "valeur UrlFilterEnable inattendue : %r"
-                        % etat["UrlFilterEnable"])
+                for key in ("UrlFilterEnable", "UrlFilterTarget",
+                            "MacFilterEnable", "MacFilterTarget"):
+                    if etat[key] not in ("0", "1"):
+                        raise StateReadError(
+                            "valeur %s inattendue : %r" % (key, etat[key]))
                 if etat["UrlFilterTarget"] != "0":
                     raise ConfigError(
                         "mode liste blanche détecté : abandon sans "

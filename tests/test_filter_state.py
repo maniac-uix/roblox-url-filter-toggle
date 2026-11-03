@@ -79,5 +79,56 @@ class TestWhitelistDetection(unittest.TestCase):
         self.assertEqual(result["status"], "allowed")
 
 
+class TestStrictParamValidation(unittest.TestCase):
+    """Validation stricte des 4 paramètres avant toute écriture :
+    chaque valeur doit valoir "0" ou "1", sinon abandon (code 6)
+    sans aucun appel d'écriture."""
+
+    def _assert_aborts_without_write(self, session):
+        code, result = run_action(mod, "toggle", session)
+        self.assertEqual(code, 6)
+        self.assertEqual(result["error"], "STATE_READ_FAILED")
+        self.assertFalse(result["success"])
+        self.assertEqual(session.write_count(), 0)
+
+    def test_mac_filter_enable_invalid_value(self):
+        session = FakeSession(states=[default_state(MacFilterEnable="2")])
+        self._assert_aborts_without_write(session)
+
+    def test_mac_filter_target_invalid_value(self):
+        session = FakeSession(states=[default_state(MacFilterTarget="yes")])
+        self._assert_aborts_without_write(session)
+
+    def test_mac_filter_enable_empty_value(self):
+        # <ParaValue></ParaValue> donne None au parsing : traité comme absent.
+        session = FakeSession(states=[default_state(MacFilterEnable="")])
+        self._assert_aborts_without_write(session)
+
+    def test_mac_filter_enable_absent(self):
+        state = default_state()
+        del state["MacFilterEnable"]
+        session = FakeSession(states=[state])
+        self._assert_aborts_without_write(session)
+
+    def test_url_filter_target_out_of_range(self):
+        # "2" n'est ni 0 ni 1 : erreur de lecture, pas liste blanche.
+        session = FakeSession(states=[default_state(UrlFilterTarget="2")])
+        self._assert_aborts_without_write(session)
+
+    def test_mac_params_at_one_still_toggle(self):
+        # Valeurs "1" légitimes : la bascule a lieu normalement.
+        session = FakeSession(states=[
+            default_state(UrlFilterEnable="0", MacFilterEnable="1",
+                          MacFilterTarget="1"),
+            default_state(UrlFilterEnable="1", MacFilterEnable="1",
+                          MacFilterTarget="1")])
+        code, result = run_action(mod, "toggle", session)
+        self.assertEqual(code, 0)
+        self.assertTrue(result["success"])
+        self.assertEqual(session.write_count(), 1)
+        self.assertIn("MacFilterEnable=1", session.writes[0])
+        self.assertIn("MacFilterTarget=1", session.writes[0])
+
+
 if __name__ == "__main__":
     unittest.main()
