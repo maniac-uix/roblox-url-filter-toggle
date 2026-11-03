@@ -4,32 +4,41 @@ Bascule ON/OFF du **filtre d'URL** du routeur **ZTE F6600P** (Orange Maroc
 Livebox WiFi 6) pour autoriser ou bloquer l'accès à Roblox, sans jamais
 toucher à la liste des URL filtrées.
 
+Version 2 : fiabilisée (phases 1, 2 et 3 de l'audit du 2026-11-04) —
+codes de sortie distincts, verrou d'exécution, vérification des
+paramètres protégés, sortie JSON pour Tasker, tests et CI.
+
 ## Principe
 
 Le script `toggle_filtre_url.py` :
 
-1. se connecte à l'interface web du routeur (réseau local uniquement),
-2. lit l'état actuel du filtre d'URL (`Activé`/`Désactivé`) et son mode
+1. vérifie que le routeur est joignable en local (connexion TCP rapide),
+2. se connecte à l'interface web du routeur (réseau local uniquement),
+3. lit l'état actuel du filtre d'URL (`Activé`/`Désactivé`) et son mode
    (`Liste noire`),
-3. **valide le format d'écriture** en réécrivant les valeurs actuelles
-   (sans rien changer),
-4. bascule le filtre vers l'état demandé,
-5. **relit l'état pour confirmer** que la bascule a bien eu lieu.
+4. si l'état demandé est déjà l'état actuel : **aucune écriture**,
+5. sinon, bascule le filtre en **une seule écriture**,
+6. **relit l'état pour confirmer** que la bascule a bien eu lieu et que
+   les paramètres protégés (mode, filtre MAC) sont inchangés.
 
 Ce qu'il ne fait **jamais** :
 
 - il ne touche pas à la liste des URL (les règles Roblox restent intactes),
-- il ne touche ni au filtre MAC, ni au mode (reste en `Liste noire`),
-- il n'affiche jamais « succès » sans avoir vérifié le nouvel état.
+- il ne touche ni au filtre MAC, ni au mode (reste en `Liste noire`) —
+  si le mode liste blanche est détecté au départ, il abandonne sans
+  rien modifier,
+- il n'affiche jamais « succès » sans avoir vérifié le nouvel état,
+- il ne bascule jamais à l'aveugle (réponse perdue = échec déclaré).
 
 Détails techniques : l'écriture passe par l'API web du routeur avec un
-jeton de session frais à chaque écriture et un en-tête `Check` signé RSA-4096
-(clé publique du F6600P, publique et non secrète).
+jeton de session frais à chaque écriture et un en-tête `Check` signé
+RSA-4096 (clé publique du F6600P, publique et non secrète). Le
+protocole est identique à celui de la v1, validé avec ce routeur.
 
 ## Prérequis
 
 - Un routeur ZTE F6600P (Orange Maroc Livebox WiFi 6), accessible en local
-  sur `192.168.11.1`.
+  sur `192.168.11.1` (modifiable dans `config.json`).
 - Un téléphone Android sur le WiFi de la maison, avec :
   - **Termux** (via F-Droid, pas la version Play Store, abandonnée),
   - **Termux:Tasker** (le plugin),
@@ -48,7 +57,7 @@ termux-setup-storage
 
 (Accepter la demande d'accès aux fichiers quand elle apparaît.)
 
-### 2. Copier le script
+### 2. Copier les fichiers
 
 Télécharger `toggle_filtre_url.py`, puis dans Termux :
 
@@ -56,31 +65,44 @@ Télécharger `toggle_filtre_url.py`, puis dans Termux :
 cp ~/storage/downloads/toggle_filtre_url.py ~/
 ```
 
-### 3. Mettre le mot de passe (une fois, reste sur le téléphone)
+### 3. Configurer (une fois, reste sur le téléphone)
+
+Copier l'exemple vers `config.json` à côté du script, puis renseigner
+le mot de passe admin :
 
 ```sh
-nano ~/toggle_filtre_url.py
+cp config.example.json config.json
+nano config.json
+chmod 600 config.json
 ```
 
-Renseigner la ligne :
-
-```python
-PASSWORD = "ton_mot_de_passe_admin"
+```json
+{
+  "router_ip": "192.168.11.1",
+  "username": "user",
+  "password": "ton_mot_de_passe_admin"
+}
 ```
 
-`Ctrl+O`, Entrée, `Ctrl+X` pour sauvegarder et quitter.
-
-> Le mot de passe reste dans ce fichier, **sur le téléphone uniquement**.
-> La version publiée ici a `PASSWORD = ""` : elle demande le mot de passe
-> à chaque exécution si la ligne n'est pas renseignée.
+> `config.json` est dans `.gitignore` : il ne doit **jamais** être
+> commité. La version publiée de ce dépôt ne contient aucun mot de
+> passe (`config.example.json` a un mot de passe vide).
+>
+> Compatibilité v1 : si `config.json` est absent, le script utilise
+> la constante `PASSWORD` du script (vide par défaut). Si aucun mot
+> de passe n'est disponible : erreur `PASSWORD_NOT_CONFIGURED`
+> (code 8). Il n'y a plus de saisie interactive (`getpass` supprimé) :
+> l'exécution Tasker est totalement non interactive.
 
 ### 4. Tester (sur le WiFi maison)
 
 ```sh
+cd ~ && python toggle_filtre_url.py status
 cd ~ && python toggle_filtre_url.py toggle
 ```
 
-Le script affiche la bascule puis la relecture de confirmation.
+La sortie est du JSON ; pour un affichage lisible, ajoutez
+`--format text`.
 
 ## Utilisation
 
@@ -88,58 +110,102 @@ Le script affiche la bascule puis la relecture de confirmation.
 python toggle_filtre_url.py           # bascule (toggle, par défaut)
 python toggle_filtre_url.py on        # active le filtre (Roblox bloqué)
 python toggle_filtre_url.py off       # désactive le filtre (Roblox autorisé)
+python toggle_filtre_url.py toggle    # bascule
+python toggle_filtre_url.py status    # lecture seule, aucune écriture
+python toggle_filtre_url.py toggle --format text   # sortie lisible
 ```
 
-## Bouton Tasker (optionnel)
+## Contrat JSON (sortie par défaut)
 
-### 1. Exécutable pour le plugin Termux:Tasker
+Une seule ligne JSON, cohérente avec le code de sortie. Exemple de
+succès :
+
+```json
+{"success": true, "status": "blocked", "previous_status": "allowed", "requested_action": "toggle", "verified": true, "changed": true, "message": "Filtre d'URL activé — Roblox bloqué (état vérifié)."}
+```
+
+Exemple d'échec :
+
+```json
+{"success": false, "status": "unknown", "previous_status": null, "requested_action": "toggle", "verified": false, "message": "routeur 192.168.11.1:80 injoignable (…)", "error": "ROUTER_UNREACHABLE"}
+```
+
+Champs :
+
+| Champ | Sens |
+| ----- | ---- |
+| `success` | `true` si l'opération est confirmée |
+| `status` | état final : `blocked` (filtre actif), `allowed` (filtre inactif), `unknown` (échec) |
+| `previous_status` | état avant l'opération (`null` si inconnu) |
+| `requested_action` | `on`, `off`, `toggle` ou `status` |
+| `verified` | `true` si l'état a été relu et confirmé sur le routeur |
+| `changed` | présent sur les succès : `true` si une écriture a eu lieu, `false` si déjà dans l'état demandé |
+| `message` | message lisible (français) |
+| `error` | code machine de l'erreur, présent uniquement en cas d'échec |
+
+## Codes de sortie
+
+| Code | Sens | `error` associé |
+| ---: | ---- | --------------- |
+| 0 | succès (changé + vérifié) | — |
+| 2 | déjà dans l'état demandé, aucune écriture | — |
+| 3 | routeur injoignable | `ROUTER_UNREACHABLE`, `ROUTER_ERROR`, `TIMEOUT` (avant écriture) |
+| 4 | authentification refusée | `AUTH_FAILED` |
+| 5 | écriture refusée / échouée | `WRITE_FAILED` |
+| 6 | état final non confirmé | `STATE_READ_FAILED`, `STATE_NOT_CONFIRMED`, `PROTECTED_PARAMS_CHANGED`, `TIMEOUT` (après écriture), `INTERNAL_ERROR` |
+| 7 | exécution déjà en cours | `ALREADY_RUNNING` |
+| 8 | usage / configuration invalide | `INVALID_USAGE`, `INVALID_CONFIG`, `PASSWORD_NOT_CONFIGURED`, `WHITELIST_DETECTED`, `MISSING_DEPENDENCY`, `LOCK_UNSUPPORTED` |
+
+## Bouton Tasker
+
+Voir [`tasker/README.md`](tasker/README.md) : wrapper Termux:Tasker,
+lecture de `roblox_result.json` et `roblox_exit.txt`, branchement sur
+`success` / `status` / code de sortie, et note de migration depuis
+la v1.
+
+## Tests et CI
+
+Les tests (`tests/`, `unittest` + `unittest.mock`) simulent le routeur
+et ne nécessitent aucun routeur physique. Ils couvrent
+l'authentification, la lecture d'état, la bascule (no-op sans
+écriture, une seule écriture), les paramètres protégés et le contrat
+Tasker (formes JSON, codes de sortie).
 
 ```sh
-mkdir -p ~/.termux/tasker
-nano ~/.termux/tasker/roblox_toggle
+python3 -m unittest discover -s tests -v
 ```
 
-Contenu :
-
-```sh
-#!/data/data/com.termux/files/usr/bin/sh
-# $1 = on / off / toggle (défaut : toggle)
-python ~/toggle_filtre_url.py "${1:-toggle}" > ~/storage/downloads/roblox_result.txt 2>&1
-```
-
-```sh
-chmod +x ~/.termux/tasker/roblox_toggle
-```
-
-### 2. Tâche Tasker
-
-Nouvelle tâche, 3 actions :
-
-1. **Plugin → Termux:Tasker** → configuration → Executable : `roblox_toggle`
-   (si un champ Arguments existe : y mettre `%par1` pour on/off/toggle).
-2. **Fichier → Lire un fichier** : `Download/roblox_result.txt` → vers
-   `%ROBLOX_RESULT`.
-3. **Alerte → Flash** : texte `%ROBLOX_RESULT`.
-
-Ajouter un widget Tasker sur l'écran d'accueil, lié à cette tâche. Le Flash
-affiche le résumé (état avant/après + confirmation de relecture).
-
-Des profils horaires Tasker peuvent ensuite appeler la même tâche avec `on`
-ou `off` pour automatiser les plages d'accès (par exemple : autorisé le
-soir en semaine, bloqué en dehors).
+La CI (`.github/workflows/tests.yml`) lance ces tests sur Python 3.11
+et 3.12 à chaque push et pull request.
 
 ## Vérification
 
 Après une bascule, vérifier dans l'interface du routeur (Critères de
-filtrage) que le filtre d'URL a bien basculé, sans modification des URL
-ni du mode Liste noire.
+filtrage) que le filtre d'URL a bien basculé, sans modification des
+URL ni du mode Liste noire. En cas de problème, voir
+[`TROUBLESHOOTING.md`](TROUBLESHOOTING.md).
 
 ## Sécurité
 
-- Le mot de passe admin reste sur l'appareil qui exécute le script.
+- Le mot de passe admin reste sur l'appareil qui exécute le script
+  (`config.json`, permissions `600`, jamais commité).
 - Ne jamais exposer l'administration du routeur sur Internet.
+- Le script parle au routeur en HTTP, comme son interface web : c'est
+  le protocole réellement supporté par le F6600P, utilisable
+  uniquement sur le réseau local.
 - Désactiver l'optimisation batterie pour Termux et Termux:Tasker
   (sinon Android peut tuer l'exécution).
+
+## Migration v1 → v2
+
+- Sortie JSON au lieu de texte libre : la tâche Tasker doit être mise
+  à jour (voir `tasker/README.md`).
+- Configuration par `config.json` au lieu de `getpass` : créer le
+  fichier avant la première exécution.
+- Le protocole routeur et le comportement du bouton sont inchangés :
+  une seule bascule, état vérifié, liste noire et filtre MAC intacts.
+- Voir [`CHANGELOG.md`](CHANGELOG.md) pour la liste complète des
+  changements.
 
 ## Licence
 

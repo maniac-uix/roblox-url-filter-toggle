@@ -1,0 +1,15 @@
+# Configuration privée : ne jamais committer ce fichier.
+config.json
+
+# Sorties locales de Tasker / Termux.
+roblox_result.json
+roblox_result.txt
+roblox_result.err
+
+# Python.
+__pycache__/
+*.pyc
+
+# Journaux et verrous locaux.
+*.log
+*.lock

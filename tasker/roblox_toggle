@@ -1,0 +1,10 @@
+#!/data/data/com.termux/files/usr/bin/sh
+# Wrapper Termux:Tasker pour toggle_filtre_url.py (v2).
+# $1 = on / off / toggle / status (défaut : toggle)
+#
+# Le JSON résultat est écrit dans ~/storage/downloads/roblox_result.json
+# et le code de sortie dans ~/storage/downloads/roblox_exit.txt.
+# La sortie d'erreur éventuelle va dans ~/storage/downloads/roblox_result.err
+# (elle ne doit jamais polluer le JSON).
+python ~/toggle_filtre_url.py "${1:-toggle}" > ~/storage/downloads/roblox_result.json 2> ~/storage/downloads/roblox_result.err
+echo "$?" > ~/storage/downloads/roblox_exit.txt
