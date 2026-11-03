@@ -73,6 +73,15 @@ Par rapport à la première version publiée (script seul + README) :
   longueurs de ciphertext (512 octets clé routeur) et rejet des
   messages trop longs.
 
+### Correctifs (4e audit, avant publication de la v1.0.0)
+
+- **Écriture atomique des résultats Tasker** : le wrapper écrit
+  d'abord dans des fichiers temporaires, puis renomme (`mv` dans le
+  même dossier) — Tasker ne lit jamais un fichier incomplet si
+  l'exécution est interrompue pendant l'écriture.
+- **`requirements.txt` versionné** : `requests>=2.28,<3` pour une
+  installation reproductible.
+
 ### Protocole routeur : inchangé
 
 Le protocole validé avec le ZTE F6600P n'a pas changé : chiffrement

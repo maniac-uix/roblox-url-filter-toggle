@@ -66,6 +66,9 @@ ou `off` pour automatiser les plages d'accès.
   provoquent plus de double bascule.
 - La sortie d'erreur éventuelle du script est isolée dans
   `Download/roblox_result.err` : elle ne pollue jamais le JSON.
+- Les résultats passent par des fichiers temporaires puis un
+  renommage atomique : Tasker ne lit jamais un fichier incomplet si
+  l'exécution est interrompue pendant l'écriture.
 - Désactiver l'optimisation batterie pour Termux et Termux:Tasker
   (sinon Android peut tuer l'exécution).
 

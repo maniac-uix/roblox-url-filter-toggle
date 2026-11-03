@@ -5,6 +5,7 @@ config.json
 roblox_result.json
 roblox_result.txt
 roblox_result.err
+*.tmp
 
 # Python.
 __pycache__/
