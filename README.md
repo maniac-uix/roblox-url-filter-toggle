@@ -53,15 +53,15 @@ protocole est identique à celui de la v1, validé avec ce routeur.
 ## Installation
 
 Installation automatique (optionnelle) dans Termux, depuis le dépôt
-(épinglée sur le commit d'épinglage, qui télécharge le contenu v2.0.0) :
+(épinglée sur le dernier main, qui télécharge le contenu v2.0.0) :
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/maniac-uix/roblox-url-filter-toggle/ef9ef6acfabe1989fa82cf7ce0734ad054ca5f1a/install.sh -o install.sh
+curl -fsSL https://raw.githubusercontent.com/maniac-uix/roblox-url-filter-toggle/b5d01aff069bb733777a7f3016dfaec41e98d02c/install.sh -o install.sh
 sh install.sh
 ```
 
-Après la création du tag `v2.0.0` (sur ce même commit), l'URL du tag
-pourra remplacer le SHA ci-dessus.
+Après la validation terrain et la création du tag `v2.0.0` sur le
+commit validé, l'URL du tag remplacera le SHA ci-dessus.
 
 Le script est idempotent : il ne touche jamais à un `config.json`
 existant et ne crée pas `config.json` tout seul (il dépose
