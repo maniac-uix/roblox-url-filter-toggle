@@ -17,7 +17,7 @@ umask 077
 # toggle_filtre_url.py config.example.json requirements.txt tasker/
 # est vide. Pour suivre main, passer REF=main en variable
 # d'environnement (déconseillé : contenu non figé).
-REF="${REF:-7e3eeb9d10b62e637a9d5182af69c78fe98165db}"
+REF="${REF:-a1a4e9c249bcbba97471e32585e1917b745f68fc}"
 REPO="maniac-uix/roblox-url-filter-toggle"
 BASE="https://raw.githubusercontent.com/$REPO/$REF"
 
