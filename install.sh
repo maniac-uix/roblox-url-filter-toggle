@@ -8,12 +8,16 @@
 set -e
 umask 077
 
-# Référence Git à télécharger (branche, tag ou commit).
-# Épinglé sur le commit de publication v2.0.0 : install.sh télécharge
-# toujours exactement le contenu publié avec ce commit, même si main
-# évolue ensuite. Pour suivre main, passer REF=main en variable
+# Référence Git à télécharger : SHA complet (40 caractères) du commit
+# dont le contenu doit être installé. Règle d'épinglage : REF doit
+# désigner le commit dont les fichiers installés seront taggés ; à
+# chaque modification d'un fichier installé (script, config.example.json,
+# requirements.txt, tasker/*), remettre REF sur le nouveau commit avant
+# de tagger, puis vérifier que git diff <REF> <tag> --
+# toggle_filtre_url.py config.example.json requirements.txt tasker/
+# est vide. Pour suivre main, passer REF=main en variable
 # d'environnement (déconseillé : contenu non figé).
-REF="${REF:-749c11c97282f3a0d084ad2d32b5810db13decb9}"
+REF="${REF:-7e3eeb9d10b62e637a9d5182af69c78fe98165db}"
 REPO="maniac-uix/roblox-url-filter-toggle"
 BASE="https://raw.githubusercontent.com/$REPO/$REF"
 

@@ -44,17 +44,17 @@ Nouvelle tâche, par exemple « Roblox Toggle », avec ces actions :
 Le code de sortie `%ROBLOX_EXIT` distingue en plus les cas que le JSON
 résume ainsi :
 
-| Code | Sens |
-| ---: | ---- |
-| 0 | succès (changé + vérifié) |
-| 2 | déjà dans l'état demandé, aucune écriture |
-| 3 | routeur injoignable |
-| 4 | authentification refusée |
-| 5 | écriture refusée |
-| 6 | état final non confirmé |
-| 7 | exécution déjà en cours |
-| 8 | usage / configuration invalide |
-| 9 | routeur joignable mais réponse invalide |
+| Code | Sens | `error` associé |
+| ---: | ---- | --------------- |
+| 0 | succès (changé + vérifié) | — |
+| 2 | déjà dans l'état demandé, aucune écriture | — |
+| 3 | routeur injoignable | `ROUTER_UNREACHABLE`, `TIMEOUT` (avant écriture) |
+| 4 | authentification refusée | `AUTH_FAILED` |
+| 5 | écriture refusée / échouée | `WRITE_FAILED` |
+| 6 | état final non confirmé | `STATE_READ_FAILED`, `STATE_NOT_CONFIRMED`, `PROTECTED_PARAMS_CHANGED`, `TIMEOUT` (après écriture), `INTERNAL_ERROR` |
+| 7 | exécution déjà en cours | `ALREADY_RUNNING` |
+| 8 | usage / configuration invalide | `INVALID_USAGE`, `INVALID_CONFIG`, `PASSWORD_NOT_CONFIGURED`, `CONFIG_PERMISSIONS`, `WHITELIST_DETECTED`, `MISSING_DEPENDENCY`, `LOCK_UNSUPPORTED` |
+| 9 | routeur joignable mais réponse invalide | `ROUTER_ERROR` |
 
 > **Code 2 = succès, pas une erreur** : le code 2 signifie « déjà
 > dans l'état demandé, aucune écriture ». La tâche Tasker doit le
