@@ -6,10 +6,15 @@
 # et le code de sortie dans ~/storage/downloads/roblox_exit.txt.
 # La sortie d'erreur éventuelle va dans ~/storage/downloads/roblox_result.err
 # (elle ne doit jamais polluer le JSON).
-# Les résultats passent d'abord par des fichiers temporaires, puis un
-# renommage atomique (mv dans le même dossier) : Tasker ne lit jamais
-# un fichier incomplet si l'exécution est interrompue pendant l'écriture.
-python ~/toggle_filtre_url.py "${1:-toggle}" > ~/storage/downloads/.roblox_result.json.tmp 2> ~/storage/downloads/roblox_result.err
-echo "$?" > ~/storage/downloads/.roblox_exit.txt.tmp
-mv ~/storage/downloads/.roblox_result.json.tmp ~/storage/downloads/roblox_result.json
-mv ~/storage/downloads/.roblox_exit.txt.tmp ~/storage/downloads/roblox_exit.txt
+# Chaque exécution utilise ses propres fichiers temporaires (mktemp),
+# puis un renommage atomique (mv dans le même dossier) : deux
+# déclenchements rapprochés ne peuvent plus se marcher dessus (les noms
+# fixes précédents étaient tronqués par le shell avant même que le
+# verrou Python n'entre en jeu), et Tasker ne lit jamais un fichier
+# incomplet.
+TMP_JSON=$(mktemp ~/storage/downloads/.roblox_result.json.XXXXXX)
+TMP_EXIT=$(mktemp ~/storage/downloads/.roblox_exit.txt.XXXXXX)
+python ~/toggle_filtre_url.py "${1:-toggle}" > "$TMP_JSON" 2> ~/storage/downloads/roblox_result.err
+echo "$?" > "$TMP_EXIT"
+mv "$TMP_JSON" ~/storage/downloads/roblox_result.json
+mv "$TMP_EXIT" ~/storage/downloads/roblox_exit.txt

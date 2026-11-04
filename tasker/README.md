@@ -68,7 +68,9 @@ ou `off` pour automatiser les plages d'accès.
   `Download/roblox_result.err` : elle ne pollue jamais le JSON.
 - Les résultats passent par des fichiers temporaires puis un
   renommage atomique : Tasker ne lit jamais un fichier incomplet si
-  l'exécution est interrompue pendant l'écriture.
+  l'exécution est interrompue pendant l'écriture. Chaque exécution
+  utilise ses propres fichiers temporaires (`mktemp`), donc deux
+  déclenchements rapprochés ne peuvent pas se marcher dessus.
 - Désactiver l'optimisation batterie pour Termux et Termux:Tasker
   (sinon Android peut tuer l'exécution).
 

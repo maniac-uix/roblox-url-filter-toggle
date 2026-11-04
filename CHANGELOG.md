@@ -79,6 +79,11 @@ Par rapport à la première version publiée (script seul + README) :
   d'abord dans des fichiers temporaires, puis renomme (`mv` dans le
   même dossier) — Tasker ne lit jamais un fichier incomplet si
   l'exécution est interrompue pendant l'écriture.
+- **Fichiers temporaires uniques (`mktemp`)** : chaque exécution du
+  wrapper utilise ses propres fichiers temporaires — deux
+  déclenchements rapprochés ne peuvent plus se marcher dessus (les
+  noms fixes précédents étaient tronqués par le shell avant même
+  que le verrou Python n'entre en jeu).
 - **`requirements.txt` versionné** : `requests>=2.28,<3` pour une
   installation reproductible.
 
