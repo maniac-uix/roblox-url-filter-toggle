@@ -19,7 +19,24 @@ cas ci-dessous.
   `config.json` (ou la constante `PASSWORD` du script).
 - Si le routeur affiche un verrouillage (trop de tentatives),
   attendez la fin du verrouillage avant de réessayer.
+- **Ne jamais relancer automatiquement sur `AUTH_FAILED`** : le
+  routeur verrouille après plusieurs échecs (`lockingTime`), et
+  chaque nouvelle tentative prolonge le verrouillage. Corrigez le
+  mot de passe d'abord, puis relancez une seule fois à la main. Le
+  script ne contient d'ailleurs aucune logique de retry : chaque
+  exécution ne tente qu'une seule authentification.
 - Vérifiez aussi `username` (par défaut `user`).
+
+## Routeur joignable mais réponse invalide — `ROUTER_ERROR` (code 9)
+
+- Le routeur répond, mais sa réponse est invalide ou inattendue
+  (par exemple erreur HTTP sur une requête). Ce n'est **pas** un
+  problème de réseau : ne pas confondre avec `ROUTER_UNREACHABLE`
+  (code 3, routeur injoignable).
+- Vérifiez que l'interface web du routeur répond normalement, puis
+  réessayez une fois. Si le problème persiste, notez la réponse du
+  routeur et signalez-le (voir `SECURITY.md` pour ce qu'il ne faut
+  jamais inclure : aucun mot de passe, aucun jeton).
 
 ## Écriture refusée — `WRITE_FAILED` (code 5)
 
@@ -69,15 +86,32 @@ cas ci-dessous.
   cours), supprimez le fichier `roblox_toggle.lock` du répertoire
   temporaire de Termux et réessayez.
 
-## Configuration invalide — `INVALID_CONFIG`, `PASSWORD_NOT_CONFIGURED` (code 8)
+## Configuration invalide — `INVALID_CONFIG`, `PASSWORD_NOT_CONFIGURED`, `CONFIG_PERMISSIONS` (code 8)
 
 - `PASSWORD_NOT_CONFIGURED` : aucun mot de passe disponible. Copiez
   `config.example.json` vers `config.json` à côté du script,
   renseignez `password`, puis `chmod 600 config.json`.
 - `INVALID_CONFIG` : `config.json` est illisible ou n'est pas un
   objet JSON valide. Corrigez sa syntaxe (virgules, guillemets).
+- `CONFIG_PERMISSIONS` : `config.json` a des droits trop ouverts
+  (groupe ou autres autorisés). Le script refuse de démarrer tant
+  que les droits ne sont pas resserrés : `chmod 600 config.json`.
+  Seuls les modes propriétaire seul sont acceptés (`600`, `400`,
+  …). **Changement cassant** : une installation existante en
+  `644` doit resserrer ses droits avant de redémarrer. Sous Termux,
+  ne placez pas `config.json` dans `~/storage` : le stockage
+  partagé Android ne supporte pas `chmod`, placez-le dans `~`.
 - `INVALID_USAGE` : argument inconnu. Usages valides : `on`, `off`,
-  `toggle`, `status`, `--format json|text`, `--help`.
+  `toggle`, `status`, `--format json|text`, `--help`, `--version`.
+
+## Session admin du routeur pendant une bascule
+
+- Comportement **non testé** si l'interface web du routeur est
+  ouverte pendant une bascule, ou si un logout échoue : par
+  prudence, évitez d'utiliser l'interface web pendant une bascule.
+- Le script tente toujours le logout en fin d'exécution (`finally`)
+  ; un échec de logout est ignoré par conception et ne change pas
+  le résultat de l'opération.
 
 ## Liste blanche détectée — `WHITELIST_DETECTED` (code 8)
 

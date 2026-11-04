@@ -54,10 +54,50 @@ résume ainsi :
 | 6 | état final non confirmé |
 | 7 | exécution déjà en cours |
 | 8 | usage / configuration invalide |
+| 9 | routeur joignable mais réponse invalide |
+
+> **Code 2 = succès, pas une erreur** : le code 2 signifie « déjà
+> dans l'état demandé, aucune écriture ». La tâche Tasker doit le
+> traiter comme un succès (branche 0/2 = succès), pas comme un
+> échec. Un appui sur « Bloquer » alors que Roblox est déjà bloqué
+> est un succès, sans écriture.
+>
+> **Changement de contrat (v2.0.0)** : `ROUTER_ERROR` sortait
+> auparavant en code 3 ; il sort désormais en code 9.
 
 Ajouter un widget Tasker sur l'écran d'accueil, lié à cette tâche.
 Des profils horaires Tasker peuvent appeler la même tâche avec `on`
 ou `off` pour automatiser les plages d'accès.
+
+## Anti-double-appui : deux widgets explicites
+
+Plutôt qu'un seul widget qui bascule (`toggle`), le pattern
+recommandé est **deux widgets explicites** : « Bloquer » appelle la
+tâche avec `on`, « Autoriser » avec `off`. Les deux actions sont
+idempotentes grâce au no-op (code 2) : un double appui sur le même
+widget ne remet pas l'état initial, il confirme simplement l'état
+déjà demandé. Un double appui sur un widget `toggle`, lui, annulerait
+la première bascule.
+
+## Retour d'état sur le bouton
+
+Le wrapper ne change pas l'icône du widget tout seul. Pour afficher
+l'état réel sur le bouton, exécuter la commande `status` (lecture
+seule, aucune écriture) à l'ouverture du widget — ou sur une tuile
+Quick Settings Tasker — puis afficher l'icône ou le libellé selon
+le champ `status` du JSON (`blocked` / `allowed`).
+
+## Alternative sans Tasker : Termux:Widget
+
+Sans Tasker, Termux:Widget permet de créer un raccourci sur l'écran
+d'accueil qui lance directement un script dans `~/.shortcuts/`.
+
+## Prérequis : autoriser les applications externes
+
+Pour que le plugin Termux:Tasker fonctionne, Termux doit autoriser
+les applications externes : dans `~/.termux/termux.properties`,
+ajouter `allow-external-apps=true`, puis appliquer avec
+`termux-reload-settings`. Sans cela, le plugin ne démarre pas.
 
 ## Notes
 
@@ -73,6 +113,19 @@ ou `off` pour automatiser les plages d'accès.
   déclenchements rapprochés ne peuvent pas se marcher dessus.
 - Désactiver l'optimisation batterie pour Termux et Termux:Tasker
   (sinon Android peut tuer l'exécution).
+- `config.json` doit avoir des droits `600` ou plus stricts, sinon
+  le script refuse de démarrer (`CONFIG_PERMISSIONS`, code 8) :
+  `chmod 600 ~/config.json`. Sous Termux, ne pas placer ce fichier
+  dans `~/storage` (le stockage partagé ne supporte pas `chmod`).
+
+## Exporter le projet Tasker (.prj.xml) pour contribuer
+
+Pour proposer la tâche Tasker au dépôt (elle n'y est pas encore,
+l'export ne peut pas être fait depuis ici) : appui long sur le
+projet dans Tasker → Export → le fichier `.prj.xml` généré peut
+ensuite être proposé. **Vérifier avant tout envoi qu'il ne contient
+aucun secret** (mot de passe, chemins personnels) : un export
+Tasker peut embarquer des variables du projet.
 
 ## Migration depuis la v1
 

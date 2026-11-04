@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 BASCULE ON/OFF du "Filtre d'URL" — ZTE F6600P (Orange Maroc Livebox WiFi 6).
-Version 2 : fiabilisée (audit 2026-11-04, phases 1 et 2).
+Version 2.0.0 : fiabilisée (audit 2026-11-04, phases 1 et 2).
 
 Ce que fait ce script :
   - se connecte au routeur (flux validé par les sondes),
@@ -26,6 +26,7 @@ Utilisation :
   python toggle_filtre_url.py off            # désactive le filtre (Roblox autorisé)
   python toggle_filtre_url.py toggle         # bascule
   python toggle_filtre_url.py status         # lecture seule, aucune écriture
+  python toggle_filtre_url.py --version      # affiche la version, sans toucher au routeur
   python toggle_filtre_url.py toggle --format text
 
 Configuration (par ordre de priorité) :
@@ -38,22 +39,20 @@ Codes de sortie :
   2 déjà dans l'état demandé       5 écriture refusée / échouée
   3 routeur injoignable            6 état final non confirmé
   7 exécution déjà en cours        8 usage / configuration invalide
+  9 routeur joignable mais réponse invalide
 """
 
 import base64
 import hashlib
 import json
 import os
-import random
+import secrets
 import re
 import socket
 import sys
 import tempfile
 import time
-import warnings
 import xml.etree.ElementTree as ET
-
-warnings.filterwarnings("ignore")
 
 try:
     import requests
@@ -75,6 +74,8 @@ PASSWORD = ""
 # Action par défaut si aucun argument : "toggle" (bascule).
 MODE = "toggle"
 
+__version__ = "2.0.0"
+
 GLOBAL_TIMEOUT = 120  # secondes, pour toute l'opération
 TCP_TIMEOUT = 3       # secondes, pour la pré-vérification de joignabilité
 LOCK_FILENAME = "roblox_toggle.lock"
@@ -88,6 +89,7 @@ EXIT_WRITE = 5
 EXIT_UNCONFIRMED = 6
 EXIT_RUNNING = 7
 EXIT_USAGE = 8
+EXIT_ROUTER_ERROR = 9
 
 # Clé publique RSA 4096 bits du F6600P (publique, pas secrète).
 # Vérifiée : identique à celle du projet open-source juacas/zte_tracker
@@ -131,7 +133,7 @@ class RouterUnreachable(ToggleError):
 
 
 class RouterError(ToggleError):
-    exit_code = EXIT_UNREACHABLE
+    exit_code = EXIT_ROUTER_ERROR
     error = "ROUTER_ERROR"
 
 
@@ -213,12 +215,11 @@ def rsa_pkcs1v15_encrypt(message: bytes) -> bytes:
     if len(message) > k - 11:
         raise ValueError("message trop long pour la clé RSA")
     padding_len = k - len(message) - 3
-    import os
-    padding = bytes(b for b in os.urandom(padding_len * 2) if b != 0)
-    padding = padding[:padding_len]
+    padding = bytearray()
     while len(padding) < padding_len:
-        extra = bytes(b for b in os.urandom(padding_len) if b != 0)
-        padding = (padding + extra)[:padding_len]
+        padding.extend(b for b in os.urandom(padding_len - len(padding))
+                       if b != 0)
+    padding = bytes(padding)
     em = b"\x00\x02" + padding + b"\x00" + message
     m = int.from_bytes(em, "big")
     c = pow(m, RSA_E, n)
@@ -249,7 +250,7 @@ def zte_login(session, password, base, username, deadline=None):
     (requests) remontent à l'appelant, qui les classe selon la phase.
     """
     r = session.get(base + "/?_type=loginData&_tag=login_entry",
-                    timeout=_timeout(deadline, 15), verify=False)
+                    timeout=_timeout(deadline, 15))
     r.raise_for_status()
     info = r.json()
     if info.get("lockingTime", 0) not in (0, None):
@@ -259,9 +260,9 @@ def zte_login(session, password, base, username, deadline=None):
     if not sess_token:
         raise AuthError("pas de sess_token dans la réponse du routeur")
 
-    rnd = "".join(random.choice("0123456789ABCDEF") for _ in range(16))
+    rnd = secrets.token_hex(8)  # 16 caractères hex, anti-cache
     r = session.get(base + "/?_type=loginData&_tag=login_token&_=" + rnd,
-                    timeout=_timeout(deadline, 15), verify=False)
+                    timeout=_timeout(deadline, 15))
     r.raise_for_status()
     login_token = None
     try:
@@ -285,8 +286,7 @@ def zte_login(session, password, base, username, deadline=None):
         base + "/?_type=loginData&_tag=login_entry",
         data={"action": "login", "Password": pwd_hash,
               "Username": username, "_sessionTOKEN": sess_token},
-        timeout=_timeout(deadline, 15), verify=False,
-    )
+        timeout=_timeout(deadline, 15))
     r.raise_for_status()
     try:
         res = r.json()
@@ -301,8 +301,7 @@ def zte_login(session, password, base, username, deadline=None):
 
 def zte_logout(session, base):
     try:
-        session.get(base + "/?_type=loginData&_tag=logout", timeout=10,
-                    verify=False)
+        session.get(base + "/?_type=loginData&_tag=logout", timeout=10)
     except Exception:
         pass
 
@@ -318,10 +317,10 @@ def lire_etat_filtre(session, base, deadline=None):
     # (Séquence identique à la sonde n°5, qui fonctionnait.)
     session.get(
         base + "/?_type=menuView&_tag=filterCriteria&Menu3Location=0",
-        timeout=_timeout(deadline, 25), verify=False)
+        timeout=_timeout(deadline, 25))
     r = session.get(
         base + "/?_type=menuData&_tag=firewall_filterglobal_lua.lua",
-        timeout=_timeout(deadline, 20), verify=False)
+        timeout=_timeout(deadline, 20))
     r.raise_for_status()
     try:
         root = ET.fromstring(r.content)
@@ -347,7 +346,7 @@ def refresh_session_token(session, base, deadline=None):
     Retourne None si aucun jeton n'est obtenu.
     """
     r = session.get(base + "/?_type=loginData&_tag=login_entry",
-                    timeout=_timeout(deadline, 15), verify=False)
+                    timeout=_timeout(deadline, 15))
     r.raise_for_status()
     info = r.json()
     return info.get("sess_token")
@@ -381,8 +380,7 @@ def ecrire_filtre(session, params, base, deadline=None):
     r = session.post(
         base + "/?_type=menuData&_tag=firewall_filterglobal_lua.lua&_="
         + str(int(time.time() * 1000)),
-        data=body, headers=headers, timeout=_timeout(deadline, 20),
-        verify=False)
+        data=body, headers=headers, timeout=_timeout(deadline, 20))
     r.raise_for_status()
     try:
         root = ET.fromstring(r.content)
@@ -448,8 +446,9 @@ def check_reachable(host, port=80, timeout=TCP_TIMEOUT):
         with socket.create_connection((host, port), timeout=timeout):
             pass
     except OSError as exc:
-        raise RouterUnreachable("routeur %s:%s injoignable (%s)"
-                                % (host, port, exc))
+        raise RouterUnreachable(
+            "routeur %s:%s injoignable (%s) : hors du réseau "
+            "domestique ?" % (host, port, exc))
 
 
 # ------------------------------------------------------------- configuration
@@ -468,6 +467,12 @@ def load_config():
            "password": PASSWORD}
     path = config_path()
     if os.path.exists(path):
+        mode = os.stat(path).st_mode
+        if mode & 0o077:
+            raise ConfigError(
+                "config.json a des droits trop ouverts (%s) : exécutez "
+                "'chmod 600 config.json' pour le restreindre"
+                % oct(mode & 0o777), error="CONFIG_PERMISSIONS")
         try:
             with open(path, "r", encoding="utf-8") as handle:
                 data = json.load(handle)
@@ -536,11 +541,13 @@ Options :
   --format json   sortie JSON sur une ligne (défaut, contrat Tasker)
   --format text   sortie lisible par un humain
   --help          affiche cette aide
+  --version       affiche la version, sans toucher au routeur
 
 Codes de sortie : 0 succès, 2 déjà dans l'état demandé,
 3 routeur injoignable, 4 authentification refusée,
 5 écriture refusée, 6 état non confirmé, 7 exécution déjà en cours,
-8 usage / configuration invalide.
+8 usage / configuration invalide,
+9 routeur joignable mais réponse invalide.
 """
 
 
@@ -552,6 +559,8 @@ def parse_args(argv):
         arg = argv[i]
         if arg in ("--help", "-h"):
             return "help", fmt
+        if arg == "--version":
+            return "version", fmt
         if arg == "--format":
             i += 1
             if i >= len(argv):
@@ -583,6 +592,7 @@ def execute(action):
     write_attempted = False
     session = None
     base = None
+    previous = None
     try:
         with ExecutionLock(lock_path()):
             cfg = load_config()
@@ -677,51 +687,51 @@ def execute(action):
                 if session is not None:
                     zte_logout(session, base)
     except AlreadyRunning as exc:
-        return EXIT_RUNNING, error_result(exc.error, str(exc), action)
+        return EXIT_RUNNING, error_result(exc.error, str(exc), action, previous_status=previous)
     except ConfigError as exc:
-        return EXIT_USAGE, error_result(exc.error, str(exc), action)
+        return EXIT_USAGE, error_result(exc.error, str(exc), action, previous_status=previous)
     except AuthError as exc:
-        return EXIT_AUTH, error_result(exc.error, str(exc), action)
+        return EXIT_AUTH, error_result(exc.error, str(exc), action, previous_status=previous)
     except WriteError as exc:
-        return EXIT_WRITE, error_result(exc.error, str(exc), action)
+        return EXIT_WRITE, error_result(exc.error, str(exc), action, previous_status=previous)
     except ProtectedChanged as exc:
-        return EXIT_UNCONFIRMED, error_result(exc.error, str(exc), action)
+        return EXIT_UNCONFIRMED, error_result(exc.error, str(exc), action, previous_status=previous)
     except StateNotConfirmed as exc:
-        return EXIT_UNCONFIRMED, error_result(exc.error, str(exc), action)
+        return EXIT_UNCONFIRMED, error_result(exc.error, str(exc), action, previous_status=previous)
     except StateReadError as exc:
-        return EXIT_UNCONFIRMED, error_result(exc.error, str(exc), action)
+        return EXIT_UNCONFIRMED, error_result(exc.error, str(exc), action, previous_status=previous)
     except RouterUnreachable as exc:
-        return EXIT_UNREACHABLE, error_result(exc.error, str(exc), action)
+        return EXIT_UNREACHABLE, error_result(exc.error, str(exc), action, previous_status=previous)
     except RouterError as exc:
-        return EXIT_UNREACHABLE, error_result(exc.error, str(exc), action)
+        return EXIT_ROUTER_ERROR, error_result(exc.error, str(exc), action, previous_status=previous)
     except OperationTimeout as exc:
         code = EXIT_UNCONFIRMED if write_attempted else EXIT_UNREACHABLE
-        return code, error_result("TIMEOUT", str(exc), action)
+        return code, error_result("TIMEOUT", str(exc), action, previous_status=previous)
     except requests.RequestException as exc:
         if phase in ("write", "verify"):
             return EXIT_UNCONFIRMED, error_result(
                 "STATE_NOT_CONFIRMED",
                 "erreur réseau pendant la vérification (%s) : état "
-                "incertain, vérifiez l'interface du routeur" % exc, action)
+                "incertain, vérifiez l'interface du routeur" % exc,
+                action, previous_status=previous)
         if isinstance(exc, requests.HTTPError):
-            return EXIT_UNREACHABLE, error_result(
-                "ROUTER_ERROR", "erreur HTTP du routeur : %s" % exc, action)
+            return EXIT_ROUTER_ERROR, error_result(
+                "ROUTER_ERROR", "erreur HTTP du routeur : %s" % exc,
+                action, previous_status=previous)
         return EXIT_UNREACHABLE, error_result(
-            "ROUTER_UNREACHABLE", "routeur injoignable : %s" % exc, action)
+            "ROUTER_UNREACHABLE",
+            "routeur injoignable (%s) : hors du réseau domestique ?" % exc,
+            action, previous_status=previous)
     except Exception as exc:  # jamais de traceback brut vers Tasker
         return EXIT_UNCONFIRMED, error_result(
-            "INTERNAL_ERROR", "erreur inattendue : %s" % exc, action)
+            "INTERNAL_ERROR", "erreur inattendue : %s" % exc,
+            action, previous_status=previous)
 
 
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
-    if requests is None:
-        result = error_result(
-            "MISSING_DEPENDENCY",
-            "le module 'requests' est introuvable : pip install requests",
-            "unknown")
-        print(json.dumps(result, ensure_ascii=False))
-        return EXIT_USAGE
+    # --help et --version sont traités AVANT le test de dépendance :
+    # ils n'ont besoin ni du routeur ni du module requests.
     try:
         action, fmt = parse_args(argv)
     except UsageError as exc:
@@ -731,6 +741,16 @@ def main(argv=None):
     if action == "help":
         print(USAGE, end="")
         return EXIT_OK
+    if action == "version":
+        print(__version__)
+        return EXIT_OK
+    if requests is None:
+        result = error_result(
+            "MISSING_DEPENDENCY",
+            "le module 'requests' est introuvable : pip install requests",
+            "unknown")
+        print(json.dumps(result, ensure_ascii=False))
+        return EXIT_USAGE
     code, result = execute(action)
     if fmt == "text":
         print(format_text(result))

@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "roblox-url-filter-toggle"
+version = "2.0.0"
+description = "Bascule ON/OFF du filtre d'URL Roblox — ZTE F6600P (Orange Maroc Livebox WiFi 6)"
+requires-python = ">=3.9"
+dependencies = [
+    "requests>=2.28,<3",
+]
+
+[tool.setuptools]
+py-modules = ["toggle_filtre_url"]

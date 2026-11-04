@@ -1,0 +1,11 @@
+# Mises à jour des dépendances pip (hebdomadaires).
+# Surveille requirements.txt à la racine, le fichier réellement
+# utilisé par install.sh (pip install -r requirements.txt).
+# La contrainte requests y est alignée sur pyproject.toml, qui
+# reste le fichier de référence des métadonnées du projet.
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"

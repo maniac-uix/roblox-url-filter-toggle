@@ -4,7 +4,7 @@ Bascule ON/OFF du **filtre d'URL** du routeur **ZTE F6600P** (Orange Maroc
 Livebox WiFi 6) pour autoriser ou bloquer l'accès à Roblox, sans jamais
 toucher à la liste des URL filtrées.
 
-Version 2 : fiabilisée (phases 1, 2 et 3 de l'audit du 2026-11-04) —
+Version 2.0.0 : fiabilisée (phases 1, 2 et 3 de l'audit du 2026-11-04) —
 codes de sortie distincts, verrou d'exécution, vérification des
 paramètres protégés, sortie JSON pour Tasker, tests et CI.
 
@@ -51,6 +51,16 @@ protocole est identique à celui de la v1, validé avec ce routeur.
 
 ## Installation
 
+Installation automatique (optionnelle) dans Termux, depuis le dépôt :
+
+```sh
+sh install.sh
+```
+
+Le script est idempotent : il ne touche jamais à un `config.json`
+existant et ne crée pas `config.json` tout seul (il dépose
+`config.example.json` et affiche les étapes). Voir `install.sh`.
+
 ### 1. Préparer Termux (une fois)
 
 ```sh
@@ -91,6 +101,18 @@ chmod 600 config.json
 > `config.json` est dans `.gitignore` : il ne doit **jamais** être
 > commité. La version publiée de ce dépôt ne contient aucun mot de
 > passe (`config.example.json` a un mot de passe vide).
+>
+> **Permissions** : le script refuse de charger un `config.json`
+> dont les droits dépassent `600` (groupe ou autres autorisés) et
+> renvoie l'erreur `CONFIG_PERMISSIONS` (code 8) avec la commande
+> de correction (`chmod 600 config.json`). En pratique, seuls les
+> modes propriétaire seul sont acceptés (`600`, `400`, …).
+> **Changement cassant** : une installation existante dont le
+> `config.json` est en `644` (défaut de beaucoup d'éditeurs) ne
+> démarrera plus tant que les droits n'auront pas été resserrés.
+> Sous Termux, un `config.json` placé dans `~/storage` (stockage
+> partagé Android) ne supporte pas `chmod` : placez-le dans le
+> répertoire personnel `~`, pas dans `~/storage`.
 >
 > Compatibilité v1 : si `config.json` est absent, le script utilise
 > la constante `PASSWORD` du script (vide par défaut). Si aucun mot
@@ -153,12 +175,18 @@ Champs :
 | ---: | ---- | --------------- |
 | 0 | succès (changé + vérifié) | — |
 | 2 | déjà dans l'état demandé, aucune écriture | — |
-| 3 | routeur injoignable | `ROUTER_UNREACHABLE`, `ROUTER_ERROR`, `TIMEOUT` (avant écriture) |
+| 3 | routeur injoignable | `ROUTER_UNREACHABLE`, `TIMEOUT` (avant écriture) |
 | 4 | authentification refusée | `AUTH_FAILED` |
 | 5 | écriture refusée / échouée | `WRITE_FAILED` |
 | 6 | état final non confirmé | `STATE_READ_FAILED`, `STATE_NOT_CONFIRMED`, `PROTECTED_PARAMS_CHANGED`, `TIMEOUT` (après écriture), `INTERNAL_ERROR` |
 | 7 | exécution déjà en cours | `ALREADY_RUNNING` |
-| 8 | usage / configuration invalide | `INVALID_USAGE`, `INVALID_CONFIG`, `PASSWORD_NOT_CONFIGURED`, `WHITELIST_DETECTED`, `MISSING_DEPENDENCY`, `LOCK_UNSUPPORTED` |
+| 8 | usage / configuration invalide | `INVALID_USAGE`, `INVALID_CONFIG`, `PASSWORD_NOT_CONFIGURED`, `CONFIG_PERMISSIONS`, `WHITELIST_DETECTED`, `MISSING_DEPENDENCY`, `LOCK_UNSUPPORTED` |
+| 9 | routeur joignable mais réponse invalide | `ROUTER_ERROR` |
+
+> **Changement de contrat (v2.0.0)** : `ROUTER_ERROR` (routeur
+> joignable mais réponse invalide, par exemple erreur HTTP) sortait
+> auparavant en code 3 ; il sort désormais en code 9. Si une tâche
+> Tasker branchait sur le code 3 pour ce cas, la mettre à jour.
 
 ## Bouton Tasker
 
@@ -191,6 +219,20 @@ filtrage) que le filtre d'URL a bien basculé, sans modification des
 URL ni du mode Liste noire. En cas de problème, voir
 [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md).
 
+## Limites connues
+
+Le filtre d'URL agit au niveau domaine : il bloque les domaines
+listés, pas les applications elles-mêmes. Il peut donc être
+contourné selon les appareils, par exemple par un VPN, par les
+données mobiles (hors WiFi maison) ou par un DNS chiffré qui
+échappe au DNS du routeur. Avant de considérer le blocage comme
+acquis, tester avec le filtre actif sur chaque appareil concerné
+(PC, console, mobile en WiFi et en 4G).
+
+**Ces limites n'ont pas été testées sur chaque appareil** : la liste
+ci-dessus décrit des contournements possibles, pas des résultats de
+tests réalisés sur chaque type d'appareil.
+
 ## Sécurité
 
 - Le mot de passe admin reste sur l'appareil qui exécute le script
@@ -212,6 +254,18 @@ URL ni du mode Liste noire. En cas de problème, voir
   une seule bascule, état vérifié, liste noire et filtre MAC intacts.
 - Voir [`CHANGELOG.md`](CHANGELOG.md) pour la liste complète des
   changements.
+
+## Crédits
+
+- Projet [juacas/zte_tracker](https://github.com/juacas/zte_tracker)
+  (licence GNU GPL v3) : référence protocolaire. La clé publique
+  RSA du F6600P et le comportement du protocole de ce routeur ont
+  été vérifiés contre ce projet. **Aucun code de ce projet n'a été
+  copié** : la clé publique est une donnée de l'appareil (publique,
+  non secrète), et le script de ce dépôt est une implémentation
+  indépendante, publiée sous licence MIT. Le projet zte_tracker
+  reste donc sous sa propre licence GPL v3, sans effet sur la
+  licence de ce dépôt.
 
 ## Licence
 
