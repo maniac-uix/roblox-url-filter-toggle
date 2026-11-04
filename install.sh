@@ -9,9 +9,11 @@ set -e
 umask 077
 
 # Référence Git à télécharger (branche, tag ou commit).
-# Défaut : main pour l'instant ; elle sera épinglée sur le commit de
-# publication (à faire après le push, voir le journal des modifications).
-REF="${REF:-main}"
+# Épinglé sur le commit de publication v2.0.0 : install.sh télécharge
+# toujours exactement le contenu publié avec ce commit, même si main
+# évolue ensuite. Pour suivre main, passer REF=main en variable
+# d'environnement (déconseillé : contenu non figé).
+REF="${REF:-749c11c97282f3a0d084ad2d32b5810db13decb9}"
 REPO="maniac-uix/roblox-url-filter-toggle"
 BASE="https://raw.githubusercontent.com/$REPO/$REF"
 
