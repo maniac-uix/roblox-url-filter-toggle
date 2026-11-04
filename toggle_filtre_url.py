@@ -92,8 +92,8 @@ EXIT_USAGE = 8
 EXIT_ROUTER_ERROR = 9
 
 # Clé publique RSA 4096 bits du F6600P (publique, pas secrète).
-# Vérifiée : identique à celle du projet open-source juacas/zte_tracker
-# (modèle F6600P confirmé).
+# C'est la clé publiée par le routeur dans ses propres pages (le projet
+# open-source juacas/zte_tracker documente la même clé pour le F6600P).
 RSA_N_HEX = (
     "c25a3fbd9067489d8cc89d1d6cd7300efccfa8137e3bf04fbcb5fddc62095526"
     "66aae2470fd5fa5e7e9561e33d9912b38c46d73e5bfbdc38ff8238ed363f634e"

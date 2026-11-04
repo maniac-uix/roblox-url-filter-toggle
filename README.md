@@ -6,7 +6,8 @@ toucher à la liste des URL filtrées.
 
 Version 2.0.0 : fiabilisée (phases 1, 2 et 3 de l'audit du 2026-11-04) —
 codes de sortie distincts, verrou d'exécution, vérification des
-paramètres protégés, sortie JSON pour Tasker, tests et CI.
+paramètres protégés, sortie JSON pour Tasker, tests (CI en attente de
+dépôt manuel).
 
 ## Principe
 
@@ -51,11 +52,16 @@ protocole est identique à celui de la v1, validé avec ce routeur.
 
 ## Installation
 
-Installation automatique (optionnelle) dans Termux, depuis le dépôt :
+Installation automatique (optionnelle) dans Termux, depuis le dépôt
+(épinglée sur le commit d'épinglage, qui télécharge le contenu v2.0.0) :
 
 ```sh
+curl -fsSL https://raw.githubusercontent.com/maniac-uix/roblox-url-filter-toggle/ef9ef6acfabe1989fa82cf7ce0734ad054ca5f1a/install.sh -o install.sh
 sh install.sh
 ```
+
+Après la création du tag `v2.0.0` (sur ce même commit), l'URL du tag
+pourra remplacer le SHA ci-dessus.
 
 Le script est idempotent : il ne touche jamais à un `config.json`
 existant et ne crée pas `config.json` tout seul (il dépose
@@ -195,7 +201,7 @@ lecture de `roblox_result.json` et `roblox_exit.txt`, branchement sur
 `success` / `status` / code de sortie, et note de migration depuis
 la v1.
 
-## Tests et CI
+## Tests
 
 Les tests (`tests/`, `unittest` + `unittest.mock`) simulent le routeur
 et ne nécessitent aucun routeur physique. Ils couvrent
@@ -209,8 +215,12 @@ la validation stricte des paramètres avant écriture.
 python3 -m unittest discover -s tests -v
 ```
 
-La CI (`.github/workflows/tests.yml`) lance ces tests sur Python 3.11
-et 3.12 à chaque push et pull request.
+> **Note :** la CI (`.github/workflows/tests.yml`, Python 3.11 et 3.12)
+> est prévue mais pas encore déposée : le connecteur ne peut pas
+> pousser sous `.github/workflows/`. Le fichier doit être déposé
+> manuellement via l'interface web GitHub ; une fois en place, elle
+> lancera ces tests à chaque push et pull request. Aucune bannière CI
+> n'est affichée tant que ce fichier n'existe pas.
 
 ## Vérification
 
@@ -258,14 +268,17 @@ tests réalisés sur chaque type d'appareil.
 ## Crédits
 
 - Projet [juacas/zte_tracker](https://github.com/juacas/zte_tracker)
-  (licence GNU GPL v3) : référence protocolaire. La clé publique
-  RSA du F6600P et le comportement du protocole de ce routeur ont
-  été vérifiés contre ce projet. **Aucun code de ce projet n'a été
-  copié** : la clé publique est une donnée de l'appareil (publique,
-  non secrète), et le script de ce dépôt est une implémentation
-  indépendante, publiée sous licence MIT. Le projet zte_tracker
-  reste donc sous sa propre licence GPL v3, sans effet sur la
-  licence de ce dépôt.
+  (licence GNU GPL v3) : référence protocolaire. Le flux de connexion
+  et l'algorithme de l'en-tête `Check` suivent le protocole imposé
+  par le routeur lui-même (documenté dans les notes de
+  reverse-engineering de ce projet, qui citent le JavaScript du
+  routeur). L'implémentation ici est écrite indépendamment : RSA
+  PKCS#1 v1.5 codé à la main (sans bibliothèque cryptographique),
+  structure propre au script et à son contrat Tasker — là où
+  zte_tracker délègue à la bibliothèque `cryptography`. La clé RSA
+  est la clé publique 4096 bits publiée par le routeur dans ses
+  propres pages. zte_tracker reste sous sa propre licence GPL v3 ;
+  ceci n'est pas un avis juridique.
 
 ## Licence
 
