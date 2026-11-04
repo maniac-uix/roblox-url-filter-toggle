@@ -60,8 +60,8 @@ curl -fsSL https://raw.githubusercontent.com/maniac-uix/roblox-url-filter-toggle
 sh install.sh
 ```
 
-Après la validation terrain et la création du tag `v2.0.0` sur le
-commit validé, l'URL du tag remplacera le SHA ci-dessus.
+L'URL reste volontairement épinglée sur ce SHA (plutôt que sur le
+tag) : c'est le plus robuste, et cela évite un commit après le tag.
 
 Le script est idempotent : il ne touche jamais à un `config.json`
 existant et ne crée pas `config.json` tout seul (il dépose
