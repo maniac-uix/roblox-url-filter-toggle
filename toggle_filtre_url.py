@@ -462,17 +462,20 @@ def load_config():
 
     Une valeur vide dans config.json ne remplace pas la constante.
     Lève ConfigError si aucun mot de passe n'est disponible.
+    Le contrôle des permissions ne s’applique que sous POSIX : hors
+    POSIX, les bits de mode ne portent pas la même signification.
     """
     cfg = {"router_ip": ROUTER_IP, "username": USERNAME,
            "password": PASSWORD}
     path = config_path()
     if os.path.exists(path):
-        mode = os.stat(path).st_mode
-        if mode & 0o077:
-            raise ConfigError(
-                "config.json a des droits trop ouverts (%s) : exécutez "
-                "'chmod 600 config.json' pour le restreindre"
-                % oct(mode & 0o777), error="CONFIG_PERMISSIONS")
+        if os.name == "posix":
+            mode = os.stat(path).st_mode
+            if mode & 0o077:
+                raise ConfigError(
+                    "config.json a des droits trop ouverts (%s) : exécutez "
+                    "'chmod 600 config.json' pour le restreindre"
+                    % oct(mode & 0o777), error="CONFIG_PERMISSIONS")
         try:
             with open(path, "r", encoding="utf-8") as handle:
                 data = json.load(handle)

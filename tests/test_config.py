@@ -89,5 +89,18 @@ class TestConfigPermissions(unittest.TestCase):
         self.assertEqual(caught.exception.error, "PASSWORD_NOT_CONFIGURED")
 
 
+class TestConfigPermissionsSkippedOffPosix(unittest.TestCase):
+    def test_check_skipped_when_not_posix(self):
+        # Hors POSIX, les bits de mode ne portent pas la même
+        # signification : le contrôle est sauté, même pour un 644.
+        with tempfile.TemporaryDirectory() as directory:
+            path = write_config(directory, mode=0o644)
+            with mock.patch.object(mod, "config_path",
+                                   return_value=path), \
+                mock.patch.object(mod.os, "name", "nt"):
+                cfg = mod.load_config()
+        self.assertEqual(cfg["password"], "test-password")
+
+
 if __name__ == "__main__":
     unittest.main()
